@@ -8,12 +8,19 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.Socket;
+import java.util.Collections;
+import java.util.Enumeration;
 
 public class RandomBotsPlugin extends JavaPlugin {
 
     private static RandomBotsPlugin instance;
     private BotManager botManager;
     private int serverPort;
+    private String resolvedHost;
 
     private File keepaliveCacheFile;
 
@@ -32,6 +39,8 @@ public class RandomBotsPlugin extends JavaPlugin {
         } else {
             serverPort = getConfig().getInt("server-port", 25565);
         }
+
+        resolvedHost = detectLocalHost();
 
         keepaliveCacheFile = new File(getDataFolder(), "keepalive-cache.yml");
         loadKeepaliveCache();
@@ -53,6 +62,41 @@ public class RandomBotsPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (botManager != null) botManager.stopAllBots();
+    }
+
+    private String detectLocalHost() {
+        try (Socket s = new Socket()) {
+            s.connect(new java.net.InetSocketAddress("8.8.8.8", 80), 1000);
+            String ip = s.getLocalAddress().getHostAddress();
+            if (ip != null && !ip.startsWith("127.") && !ip.startsWith("0.")) return ip;
+        } catch (Exception ignored) {}
+
+        try {
+            Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+            if (nics != null) {
+                for (NetworkInterface nic : Collections.list(nics)) {
+                    if (!nic.isUp() || nic.isLoopback() || nic.isVirtual()) continue;
+                    String nicName = nic.getName().toLowerCase();
+                    if (nicName.startsWith("docker") || nicName.startsWith("veth")
+                            || nicName.startsWith("virbr") || nicName.startsWith("tun")
+                            || nicName.startsWith("tap")) continue;
+                    for (InetAddress addr : Collections.list(nic.getInetAddresses())) {
+                        if (!(addr instanceof Inet4Address)) continue;
+                        String ip = addr.getHostAddress();
+                        if (ip.startsWith("127.") || ip.startsWith("169.254.")) continue;
+                        return ip;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        String cfgHost = getConfig().getString("server-host", "localhost");
+        if (cfgHost != null && !cfgHost.isEmpty()
+                && !cfgHost.equals("localhost") && !cfgHost.equals("127.0.0.1")) {
+            return cfgHost;
+        }
+
+        return "localhost";
     }
 
     private void loadKeepaliveCache() {
@@ -84,14 +128,11 @@ public class RandomBotsPlugin extends JavaPlugin {
         });
     }
 
-    public void debugLog(String msg) {
-        if (getConfig().getBoolean("debug-log", false)) {
-            getLogger().info(msg);
-        }
-    }
+    /** 完全静默，不输出任何日志 */
+    public void debugLog(String msg) { /* 静默 */ }
 
     public static RandomBotsPlugin getInstance() { return instance; }
     public BotManager getBotManager()            { return botManager; }
     public int        getServerPort()            { return serverPort; }
-    public String     getServerHost()            { return getConfig().getString("server-host", "localhost"); }
+    public String     getServerHost()            { return resolvedHost != null ? resolvedHost : getConfig().getString("server-host", "localhost"); }
 }
