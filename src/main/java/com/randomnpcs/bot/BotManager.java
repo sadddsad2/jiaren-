@@ -134,18 +134,8 @@ public class BotManager {
         return plugin.getConfig().getInt("bot-count", 1);
     }
 
-    /** 所有日志统一受 debug-log 控制 */
-    private void log(String msg) {
-        if (plugin.getConfig().getBoolean("debug-log", false)) {
-            plugin.getLogger().info(msg);
-        }
-    }
-
-    public void debugLog(String msg) {
-        if (plugin.getConfig().getBoolean("debug-log", false)) {
-            plugin.getLogger().info(msg);
-        }
-    }
+    private void log(String msg)       { /* 静默 */ }
+    public void debugLog(String msg)   { /* 静默 */ }
 
     private String generateUniqueName() {
         List<String> prefixes = plugin.getConfig().getStringList("name-prefixes");
