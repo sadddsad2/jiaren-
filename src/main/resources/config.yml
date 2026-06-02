@@ -7,7 +7,7 @@ server-host: "localhost"
 server-port: 25565
 
 # 同时在线假人数量
-bot-count: 3
+bot-count: 5
 
 # 是否显示调试日志（false = 只显示关键信息，true = 显示所有包/连接日志）
 debug-log: false
